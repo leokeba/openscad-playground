@@ -46,6 +46,39 @@ Licenses: see [LICENSES](./LICENSE).
 - Every bundled library is fetched on demand (by a render that refers to it, or when a file of it is opened from the file explorer); the file explorer and the `use <` / `include <` completions list all of them from the build-time `libraries/index.json`. Non-`.scad` assets and directories with no `.scad` file are not in the index (not listed in the explorer).
 - Preparse builtin libraries definitions at compile time, ship the JSON.
 
+
+## Local-files sync (fork feature)
+
+This fork adds a local-files sync server so a project can be edited in the
+browser and synced back to the files on disk. It works with any OpenSCAD
+repo or folder.
+
+Usage:
+
+```sh
+npm run build          # build the app (once)
+npm run sync -- --repo /path/to/repo --port 8787
+```
+
+Then open <http://127.0.0.1:8787/?sync=http://127.0.0.1:8787> in a browser.
+The project is loaded from the repo (all `.scad` files, recursively); the
+active file is `assembly.scad` if present, else the first file (override with
+`&file=<relative/path.scad>`). Edits are saved back to the repo automatically
+(debounced, ~0.5 s).
+
+The server (`sync-server.mjs`, dependency-free Node) also serves the built
+playground from `dist/`. Only `.scad` files under the repo root are served or
+written; paths are validated to stay inside the repo. No auth: bind to
+localhost (the default) and use a tunnel for remote access.
+
+API:
+
+- `GET /api/health` -> `{ok, repo}`
+- `GET /api/files` -> `{files: [{path, content}]}` (relative paths, `/`-separated)
+- `PUT /api/files/<path>` -> body: file content; writes `<repo>/<path>`
+
+Environment variables: `HELIOSTAT_REPO`, `PORT`, `HOST` (CLI args win).
+
 ## Building
 
 The project uses a **webpack-based build system** that reads library metadata from `libs-config.json` to automatically download, clone, and package OpenSCAD libraries and dependencies. This replaces the previous Makefile approach with a more standard, maintainable solution.

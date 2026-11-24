@@ -104,10 +104,12 @@ async function renderStandalone(fs: FS, root: ReactDOM.Root) {
     { App },
     { registerOpenSCADLanguage },
     { readStateFromFragment, writeStateInFragment },
+    { getSyncUrl, getSyncFileParam, loadSyncProject, writeSourcesToFS },
   ] = await Promise.all([
     import('./components/App.tsx'),
     import('./language/openscad-register-language.ts'),
     import('./state/fragment-state.ts'),
+    import('./sync/local-sync.ts'),
   ]);
 
   await registerOpenSCADLanguage(fs, '/', zipArchives);
@@ -134,6 +136,30 @@ async function renderStandalone(fs: FS, root: ReactDOM.Root) {
     statePersister = {
       set: writeStateInFragment,
     };
+  }
+
+  // Local-files sync: load the project from the sync server (?sync=<url>).
+  // The loaded project wins over the persisted/fragment state.
+  let sync: {url: string, files: import('./sync/local-sync.ts').SyncFile[]} | undefined;
+  const syncUrl = getSyncUrl();
+  if (syncUrl) {
+    try {
+      const {files, activePath} = await loadSyncProject(syncUrl, getSyncFileParam());
+      writeSourcesToFS(fs, files);
+      const initialState = createInitialState(persistedState);
+      initialState.params.sources = files.map(f => ({path: '/' + f.path, content: f.content}));
+      initialState.params.activePath = '/' + activePath;
+      sync = {url: syncUrl, files};
+      root.render(
+        <React.StrictMode>
+          <App initialState={initialState} statePersister={statePersister} fs={fs} sync={sync} />
+        </React.StrictMode>
+      );
+      return;
+    } catch (e) {
+      console.error('[sync] Failed to load the project from the sync server:', e);
+      // Fall through to the normal (default) state so the app still opens.
+    }
   }
 
   const initialState = createInitialState(persistedState);

@@ -61,7 +61,10 @@
                 "COPYING"
             ],
             "tag": "v21.43.1",
-            "commit": "53775b7e099b1256723d5ecbbe28176491a82729"
+            "commit": "53775b7e099b1256723d5ecbbe28176491a82729",
+            "symlinks": {
+                "NopSCADLib": "."
+            }
         },
         {
             "name": "funcutils",

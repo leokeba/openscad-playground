@@ -13,13 +13,24 @@ import { EmbedIcons } from './EmbedView';
 import { startBackgroundLoading } from '../background-loading';
 import { downloadSource, downloadUrl } from '../utils';
 import { buildFilename, type ExportFormat } from '../state/export-logic';
+import { SyncClient, type SyncFile } from '../sync/local-sync';
 
 
-export function App({initialState, statePersister, fs}: {initialState: State, statePersister: StatePersister, fs: FS}) {
+export function App({initialState, statePersister, fs, sync}: {initialState: State, statePersister: StatePersister, fs: FS, sync?: {url: string, files: SyncFile[]}}) {
   const [state, setState] = useState(initialState);
-  
+
   const model = new Model(fs, state, setState, statePersister);
   useEffect(() => model.init());
+
+  // Local-files sync: save the edited file back to the sync server (debounced).
+  const syncClientRef = React.useRef<SyncClient | null>(null);
+  if (sync && !syncClientRef.current) {
+    syncClientRef.current = new SyncClient(sync.url);
+    for (const f of sync.files) syncClientRef.current.markSaved(f.path, f.content);
+  }
+  useEffect(() => {
+    syncClientRef.current?.scheduleSave(state);
+  }, [state]);
 
   // Only needed by the file picker, completions, offline use...: once the first render
   // is out of the way (never while it is in progress, however long it takes). With
