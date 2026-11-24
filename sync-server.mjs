@@ -46,12 +46,17 @@ const PORT = parseInt(portArg ?? process.env.PORT ?? '8787', 10);
 const HOST = hostArg ?? process.env.HOST ?? '127.0.0.1';
 
 // ─── Repo helpers ──────────────────────────────────────────────────────────
+// Directories that never contain project files (dependencies, build output).
+const EXCLUDED_DIRS = new Set([
+  'node_modules', 'dist', 'build', 'out', 'target', 'vendor', '.venv', 'venv',
+]);
+
 async function collectScadFiles(dir, base = '') {
   const out = [];
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.name.startsWith('.')) continue;
-    if (entry.name === 'node_modules' || entry.name === 'dist') continue;
+    if (entry.isDirectory() && EXCLUDED_DIRS.has(entry.name)) continue;
     const full = join(dir, entry.name);
     const rel = base ? `${base}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
